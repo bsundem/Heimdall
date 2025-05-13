@@ -4,8 +4,9 @@ import importlib
 import pkgutil
 import inspect
 import os
-from heimdall.core.event_bus import EventBus
-from heimdall.core.config import ConfigurationManager
+# Update imports to use relative paths
+from core.event_bus import EventBus
+from core.config import ConfigurationManager
 
 class PluginInterface:
     """
@@ -46,29 +47,72 @@ class PluginManager:
         """
         self.logger.info("Discovering plugins")
         
-        # Dynamically import plugin modules
-        import heimdall.plugins
-        
-        plugin_package = heimdall.plugins
-        
-        for _, name, is_pkg in pkgutil.iter_modules(plugin_package.__path__, 
-                                                 plugin_package.__name__ + '.'):
-            if is_pkg:  # Only process subpackages
+        try:
+            # Try to import plugins package in a way that works both with and without proper Python package setup
+            try:
+                import plugins
+                plugin_package = plugins
+            except ImportError:
+                # If that fails, try the longer path
                 try:
-                    module = importlib.import_module(name)
+                    import heimdall.plugins
+                    plugin_package = heimdall.plugins
+                except ImportError:
+                    # Last resort: try relative import
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    plugins_dir = os.path.join(os.path.dirname(current_dir), "plugins")
                     
-                    # Find plugin classes in the module
-                    for item_name in dir(module):
-                        item = getattr(module, item_name)
-                        if (inspect.isclass(item) and 
-                            issubclass(item, PluginInterface) and 
-                            item != PluginInterface):
-                            
-                            plugin_instance = item()
-                            self.plugins[plugin_instance.name] = plugin_instance
-                            self.logger.info(f"Discovered plugin: {plugin_instance.name}")
-                except Exception as e:
-                    self.logger.error(f"Error discovering plugin {name}: {e}")
+                    # Manually load plugins
+                    self.logger.info(f"Looking for plugins in {plugins_dir}")
+                    if os.path.exists(plugins_dir) and os.path.isdir(plugins_dir):
+                        for item in os.listdir(plugins_dir):
+                            plugin_dir = os.path.join(plugins_dir, item)
+                            if os.path.isdir(plugin_dir) and os.path.exists(os.path.join(plugin_dir, "__init__.py")):
+                                try:
+                                    self.logger.info(f"Found potential plugin: {item}")
+                                    # Try to import the plugin module
+                                    spec = importlib.util.spec_from_file_location(
+                                        f"plugins.{item}", 
+                                        os.path.join(plugin_dir, "__init__.py")
+                                    )
+                                    module = importlib.util.module_from_spec(spec)
+                                    spec.loader.exec_module(module)
+                                    
+                                    # Find plugin classes in the module
+                                    for attr_name in dir(module):
+                                        attr = getattr(module, attr_name)
+                                        if (inspect.isclass(attr) and 
+                                            issubclass(attr, PluginInterface) and 
+                                            attr != PluginInterface):
+                                            
+                                            plugin_instance = attr()
+                                            self.plugins[plugin_instance.name] = plugin_instance
+                                            self.logger.info(f"Discovered plugin: {plugin_instance.name}")
+                                except Exception as e:
+                                    self.logger.error(f"Error loading plugin {item}: {e}")
+                    return
+            
+            # If we successfully imported the plugin_package, use the standard approach
+            for _, name, is_pkg in pkgutil.iter_modules(plugin_package.__path__, 
+                                                    plugin_package.__name__ + '.'):
+                if is_pkg:  # Only process subpackages
+                    try:
+                        module = importlib.import_module(name)
+                        
+                        # Find plugin classes in the module
+                        for item_name in dir(module):
+                            item = getattr(module, item_name)
+                            if (inspect.isclass(item) and 
+                                issubclass(item, PluginInterface) and 
+                                item != PluginInterface):
+                                
+                                plugin_instance = item()
+                                self.plugins[plugin_instance.name] = plugin_instance
+                                self.logger.info(f"Discovered plugin: {plugin_instance.name}")
+                    except Exception as e:
+                        self.logger.error(f"Error discovering plugin {name}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error during plugin discovery: {e}")
         
     def initialize_plugins(self) -> None:
         """

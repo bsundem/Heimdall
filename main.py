@@ -11,13 +11,26 @@ import argparse
 from pathlib import Path
 
 # Add the project root directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+project_root = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, project_root)
 
-from PySide6 import QtCore, QtWidgets, QtGui
+# Try importing directly from the current directory
+sys.path.insert(0, os.path.join(project_root, "heimdall"))
 
-from heimdall.core.orchestrator import ApplicationOrchestrator
-from heimdall.infrastructure.logging.logging_service import LoggingService
-from heimdall.presentation.main.main_window import MainWindow
+try:
+    from PySide6 import QtCore, QtWidgets, QtGui
+except ImportError:
+    print("PySide6 is not installed. Please install it with pip: pip install pyside6")
+    sys.exit(1)
+
+try:
+    from core.orchestrator import ApplicationOrchestrator
+    from infrastructure.logging.logging_service import LoggingService
+    from presentation.main.main_window import MainWindow
+except ImportError as e:
+    print(f"Error importing modules: {e}")
+    print(f"Current Python path: {sys.path}")
+    sys.exit(1)
 
 def parse_args():
     """
