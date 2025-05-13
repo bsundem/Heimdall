@@ -1,0 +1,1 @@
+from heimdall.presentation.main.main_window import MainWindow

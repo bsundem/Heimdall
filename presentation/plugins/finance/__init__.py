@@ -1,0 +1,1 @@
+from heimdall.presentation.plugins.finance.finance_widget import FinanceWidget

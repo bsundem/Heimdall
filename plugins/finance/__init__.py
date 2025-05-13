@@ -1,0 +1,1 @@
+from heimdall.plugins.finance.finance_plugin import FinancePlugin
