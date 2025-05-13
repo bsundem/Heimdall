@@ -13,7 +13,8 @@ data_analytics_app/
 ├── infrastructure/ # Technical infrastructure
 ├── presentation/   # UI components
 ├── domain/         # Domain models and services
-└── plugins/        # Domain-specific plugins
+├── plugins/        # Domain-specific plugins
+└── analysis/       # Data science specific modules
 ```
 
 ## 2. Key Design Principles
@@ -65,6 +66,7 @@ Facilitates communication between decoupled components:
 - Support for synchronous and asynchronous events
 - Event prioritization and filtering
 - Error handling for event processors
+- Implementation using PyPubSub or RxPy for reactive programming patterns
 
 ### 3.3 Plugin Manager
 Manages the discovery, loading, and lifecycle of plugins:
@@ -72,6 +74,7 @@ Manages the discovery, loading, and lifecycle of plugins:
 - Plugin dependency resolution
 - Plugin versioning and compatibility checking
 - Plugin isolation (prevents cross-plugin dependencies)
+- Implementation using pluggy (from pytest) for robust plugin management
 
 ### 3.4 Configuration Manager
 Handles application configuration from multiple sources:
@@ -87,6 +90,7 @@ Provides asynchronous execution capabilities:
 - Progress tracking and cancellation
 - Resource management
 - Error handling and reporting
+- Implementation using asyncio and concurrent.futures
 
 ## 4. Infrastructure Layer
 
@@ -99,11 +103,12 @@ Provides access to various database systems:
 
 ### 4.2 R Integration
 Enables execution of R scripts from Python:
-- R script execution engine
-- Data conversion between Python and R
-- R package management
-- Asynchronous R execution
+- R script execution engine using rpy2
+- Two-way data conversion between Python and R environments
+- R package management through rpy2
+- Asynchronous R execution with proper memory management
 - Result capture and error handling
+- Direct access to R objects from Python code
 
 ### 4.3 Logging System
 Comprehensive logging infrastructure:
@@ -122,26 +127,34 @@ Manages data export to various formats:
 
 ## 5. Presentation Layer
 
-### 5.1 Modern Tkinter UI
-Enhanced Tkinter interface with modern styling:
-- Custom theme system with light/dark modes
+### 5.1 PySide6 UI Framework
+Modern Qt-based interface using PySide6:
+- LGPL-licensed Qt bindings for Python
+- Cross-platform UI with native look and feel
+- Qt Designer integration for visual UI development
+- Responsive layouts using Qt's layout managers
+- Custom theming with stylesheets (light/dark modes)
+- High-DPI support across platforms
 - Component-based UI architecture
-- Responsive layout management
-- Custom widgets and controls
+- Dockable widgets for customizable workspaces
 
 ### 5.2 Async-Aware UI Components
 UI components that handle asynchronous operations:
 - Progress indicators for long-running tasks
-- Non-blocking UI interactions
+- Non-blocking UI interactions via Qt's signal/slot mechanism
 - Cancellation support for background tasks
 - Real-time updates from background processes
+- Integration with asyncio using QEventLoop
 
 ### 5.3 Data Visualization
 Components for data analysis visualization:
-- Chart and graph rendering
-- Interactive data exploration
+- Interactive charts using either QtCharts or embedded matplotlib
+- Interactive data exploration with zooming and filtering
 - Export to various formats
 - Custom visualization plugins
+- 3D visualization capabilities via QtDataVisualization
+- OpenGL acceleration for large datasets
+- Integration with Plotly for advanced interactive visualizations
 
 ### 5.4 Export Interface
 UI components for data export operations:
@@ -205,7 +218,7 @@ Plugins organized by business domains:
 ### 8.3 Data Analysis Flow
 1. User selects data sources and analysis type
 2. Data retrieved from databases via SQLAlchemy
-3. Python or R analysis performed on data
+3. Python or R analysis performed on data (via direct Python or rpy2)
 4. Results cached for future use
 5. Visualization components render results
 6. User interacts with visualization for deeper analysis
@@ -240,6 +253,8 @@ Plugins organized by business domains:
 - End-to-end testing for workflows
 - Mocking framework for external dependencies
 - CI/CD integration for automated testing
+- Statistical model validation testing
+- Data pipeline testing with synthetic datasets
 
 ### 9.4 Packaging and Deployment
 - Conda environment specification
@@ -247,6 +262,7 @@ Plugins organized by business domains:
 - Cross-platform packaging (Mac and Windows)
 - Version management and updates
 - Runtime dependency resolution
+- Docker containerization for consistent environments
 
 ## 10. Export System Design
 
@@ -324,43 +340,8 @@ Capabilities for exporting multiple datasets:
 
 ## 12. CSV Export Implementation
 
-### 12.1 CSV Export Interface
-```python
-class CSVExportable:
-    """Interface for objects that can be exported to CSV"""
-    
-    def to_csv_data(self) -> List[Dict[str, Any]]:
-        """Convert object to a list of dictionaries for CSV export"""
-        pass
-        
-    def get_csv_field_names(self) -> List[str]:
-        """Get the field names for CSV headers"""
-        pass
-        
-    def get_csv_file_name(self) -> str:
-        """Get the default file name for CSV export"""
-        pass
-```
+### 12.1 CSV Export Configuration
 
-### 12.2 CSV Export Service
-```python
-class CSVExportService:
-    """Service for exporting data to CSV files"""
-    
-    def export(self, data: CSVExportable, file_path: str, **options) -> bool:
-        """Export data to a CSV file"""
-        pass
-        
-    def export_multiple(self, exports: List[Tuple[CSVExportable, str]], **options) -> List[bool]:
-        """Export multiple datasets to CSV files"""
-        pass
-        
-    def export_to_string(self, data: CSVExportable, **options) -> str:
-        """Export data to a CSV string"""
-        pass
-```
-
-### 12.3 CSV Export Configuration
 Options for customizing CSV exports:
 - Delimiter selection (comma, tab, etc.)
 - Quote character configuration
@@ -369,3 +350,93 @@ Options for customizing CSV exports:
 - Data formatting options
 - Character encoding selection
 
+## 14. Data Science Project Structure
+
+### 14.1 Directory Organization
+Following Cookiecutter Data Science conventions:
+```
+analysis/
+├── data/
+│   ├── raw/                # Original, immutable data
+│   ├── interim/            # Intermediate processed data
+│   ├── processed/          # Final, canonical datasets
+│   └── external/           # Data from third-party sources
+│
+├── models/                 # Trained and serialized models
+│   ├── trained/            # Saved model artifacts
+│   └── evaluation/         # Model performance metrics
+│
+├── notebooks/              # Jupyter notebooks for exploration
+│   ├── exploratory/        # Initial data exploration
+│   ├── modeling/           # Model development notebooks
+│   └── reporting/          # Results presentation notebooks
+│
+├── pipelines/              # Data processing pipelines
+│   ├── preprocessing/      # Data cleaning and preparation
+│   ├── feature_engineering/# Feature creation and transformation
+│   └── evaluation/         # Model evaluation pipelines
+│
+├── visualizations/         # Generated graphics and figures
+│
+└── scripts/                # Standalone analysis scripts
+    ├── data_processing/    # Scripts for data preparation
+    ├── modeling/           # Scripts for model training
+    └── evaluation/         # Scripts for model evaluation
+```
+
+### 14.2 Analysis Workflow Management
+- Reproducible analysis pipelines using Prefect or Luigi
+- Version control for datasets using DVC (Data Version Control)
+- Experiment tracking with MLflow
+- Model registry for versioning trained models
+- Automated report generation with Jupyter notebooks
+
+### 14.3 Data Science Integration
+- Integration with the domain layer for business context
+- Clear interfaces between analysis code and application
+- Standardized data access patterns
+- Model deployment and serving infrastructure
+- Analysis results visualization in the main application
+
+### 14.4 Statistical Model Management
+- Model versioning and lineage tracking
+- A/B testing framework for model comparison
+- Model validation and performance monitoring
+- Feature importance and explainability tools
+- Model retraining triggers and scheduling
+
+## 15. Asynchronous Operations Framework
+
+### 15.1 Core Asynchronous Pattern
+- Primary use of Python's asyncio for concurrent operations
+- Integration with Qt's event loop via qasyncio or asyncqt
+- Task management with proper cancellation support
+- Error handling and recovery for async operations
+- Progress reporting for long-running tasks
+
+### 15.2 Concurrent Execution
+- CPU-bound tasks using concurrent.futures.ProcessPoolExecutor
+- I/O-bound tasks using asyncio or concurrent.futures.ThreadPoolExecutor
+- Dynamic resource allocation based on system capabilities
+- Task prioritization and scheduling
+- Task dependencies and workflow management
+
+### 15.3 Async Database Access
+- Asynchronous database operations using SQLAlchemy 2.0 async features
+- Connection pooling optimized for async access
+- Transaction management in async context
+- Batched operations for improved performance
+
+### 15.4 Async R Integration
+- Non-blocking R execution using rpy2 in separate processes
+- Memory-efficient data transfer between Python and R
+- Progress monitoring for long-running R operations
+- Graceful termination of R processes
+- Result streaming for large datasets
+
+### 15.5 UI Integration
+- Non-blocking UI during long operations
+- Real-time progress indicators
+- Cancelable operations from UI
+- Background refresh of visualizations
+- Responsive UI even during intensive computation
